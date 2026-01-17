@@ -1,0 +1,4 @@
+* JSON Parsing Example
+** Intention
+Trying to draw continents from data acquired from:
+[[https://github.com/highcharts/map-collection-dist][map-collection-dist]]
