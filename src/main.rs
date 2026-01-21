@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::BufReader;
-use topojson::{Arc, Topology, TransformParams, Value};
+use topojson::{Arc, Geometry, Topology, TransformParams, Value};
 
 fn decode_arc(arc: &Vec<Vec<f64>>, transform: &Option<TransformParams>) -> Vec<(f64, f64)> {
 	let mut x = 0.0;
@@ -25,36 +25,77 @@ fn decode_arc(arc: &Vec<Vec<f64>>, transform: &Option<TransformParams>) -> Vec<(
 		.collect()
 }
 
-fn process_topology(topology: Topology) {
-	let transform = topology.transform;
-	let arcs = topology.arcs;
+fn process_geometry(g: &Geometry) {
+	// if let Some(props) = &g.properties {
+	//	if let Some(val) = props.get("name") {
+	//		let country = match val {
+	//			serde_json::value::Value::String(c) => c,
+	//			_ => &String::new(),
+	//		};
+	//		println!("El país es: {}", country);
+	//	} else {
+	//		println!("La clave 'pais' no existe.");
+	//	}
+	// }
+
+
+	if let Some(country) = &g.properties {
+	   print!("Country: {} -> ", country["name"]);
+	}
+
+//	let country = &g.properties.as_ref().unwrap()["name"];
+	match &g.value {
+		Value::Point(point) => {
+			println!("Found Point");
+		}
+		Value::MultiPoint(mp) => {
+			println!("Found MultiPoint");
+		}
+		Value::Polygon(arcs) => {
+			println!("Found Polygon");
+			// for ring in rings {
+			//   render_ring(&ring, &arcs, &transform);
+			// }
+		}
+		Value::MultiPolygon(arcs) => {
+			println!("Found MultiPolygon");
+			// for polygon in polygons {
+			//     for ring in polygon {
+			//       render_ring(&ring, &arcs, &transform);
+			//     }
+			// }
+		}
+		Value::LineString(arcs) => {
+			println!("Found LineStrings");
+			// render_ring(&ring, &arcs, &transform);
+		}
+		Value::GeometryCollection(gc) => {
+			println!("Found GeometryCollection with #{} elems.", gc.len());
+			for internalg in gc {
+				process_geometry(internalg);
+			}
+		}
+		_ => {
+			// Otros tipos como Point o MultiPoint no usan la propiedad 'arcs'
+			// dbg!(&geometry.value);
+			println!("Tipo de geometría no soportado para dibujo por arcos.");
+		}
+	}
+}
+
+fn process_topology(topology: &Topology) {
+	let transform = &topology.transform;
+	let arcs = &topology.arcs;
+
+	// dbg!(&topology.bbox);
 
 	// 1. Acceder a los objetos
 	for ng in &topology.objects {
-		println!("Capa encontrada: {}", ng.name);
+		println!("Named Geometry: {}", ng.name);
 		let geometry = &ng.geometry;
-		// 3. Usar match para extraer los arcos según el tipo de geometría
-		match &geometry.value {
-			Value::Polygon(arcs) => {
-				// for ring in rings {
-				//   render_ring(&ring, &arcs, &transform);
-				// }
-			}
-			Value::MultiPolygon(arcs) => {
-				// for polygon in polygons {
-				//     for ring in polygon {
-				//       render_ring(&ring, &arcs, &transform);
-				//     }
-				// }
-			}
-			Value::LineString(arcs) => {
-				// render_ring(&ring, &arcs, &transform);
-			}
-			_ => {
-				// Otros tipos como Point o MultiPoint no usan la propiedad 'arcs'
-				println!("Tipo de geometría no soportado para dibujo por arcos.");
-			}
-		}
+
+		// dbg!(geometry);
+		process_geometry(geometry);
 	}
 }
 
@@ -88,43 +129,46 @@ fn process_topology(topology: Topology) {
 // }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+	// 0. PWD
+	// let cwd = std::env::current_dir()?;
+	// println!("CWD: {}", cwd.display());
 
-let output = std::process::Command::new("pwd")
-		.output() // Ejecuta el comando y espera a que termine
-		.expect("Error al ejecutar el comando");
-let stdout = String::from_utf8_lossy(&output.stdout);
-		println!("El directorio actual es: {}", stdout);
 	// 1. Cargar el archivo
-	// let file = File::open("/home/acorbi/projects/mapper/assets/world-lowres.topo.json")?;
 	let file = File::open("./assets/world-lowres.topo.json")?;
+	// let file = File::open("/home/acorbi/projects/mapper/assets/world-lowres.topo.json")?;
 	let reader = BufReader::new(file);
 
 	// 2. Deserializar a la estructura Topology
 	let topology: Topology = serde_json::from_reader(reader)?;
 
-	println!(
-		"Transform: {:#?} ",
-		topology.transform.ok_or("No transform available.")?
-	);
+	// println!(
+	//     "Transform: {:#?} ",
+	//     topology
+	//         .transform
+	//         .as_ref()
+	//         .ok_or("No transform available.")?
+	// );
+
+	process_topology(&topology);
 
 	// 3. Acceder a los arcos globales
 	// Los arcos son una lista de listas de posiciones: Vec<Vec<Vec<f64>>>
-	let arcs = &topology.arcs;
-
-	println!("El archivo tiene {} arcos.", arcs.len());
+	// let arcs = &topology.arcs;
+	//
+	// println!("El archivo tiene {} arcos.", arcs.len());
 
 	// 4. Ejemplo: Recorrer el primer arco para obtener puntos
-	for (i, arc) in arcs.iter().enumerate() {
-		//if let Some(first_arc) = arcs.get(0) {
-		println!("Arco: {i}\n-------");
-		for position in arc {
-			// position es un Vec<f64>, usualmente [x, y]
-			let x = position[0];
-			let y = position[1];
-			println!("Punto del arco: {}, {}", x, y);
-		}
-		println!();
-	}
+	// for (i, arc) in arcs.iter().enumerate() {
+	//     //if let Some(first_arc) = arcs.get(0) {
+	//     println!("Arco: {i}\n-------");
+	//     for position in arc {
+	//         // position es un Vec<f64>, usualmente [x, y]
+	//         let x = position[0];
+	//         let y = position[1];
+	//         println!("Punto del arco: {}, {}", x, y);
+	//     }
+	//     println!();
+	// }
 
 	Ok(())
 }
