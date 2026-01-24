@@ -1,8 +1,8 @@
 use std::fs::File;
 use std::io::BufReader;
-use topojson::{Arc, Geometry, Topology, TransformParams, Value};
+use topojson::{Arc, ArcIndexes, Geometry, Position, Topology, TransformParams, Value};
 
-fn decode_arc(arc: &Vec<Vec<f64>>, transform: &Option<TransformParams>) -> Vec<(f64, f64)> {
+fn decode_arcs(arc: &Vec<Position>, transform: &Option<TransformParams>) -> Vec<(f64, f64)> {
     let mut x = 0.0;
     let mut y = 0.0;
 
@@ -25,21 +25,123 @@ fn decode_arc(arc: &Vec<Vec<f64>>, transform: &Option<TransformParams>) -> Vec<(
         .collect()
 }
 
-fn process_geometry(g: &Geometry) {
-    if let Some(props) = &g.properties {
-        if let Some(val) = props.get("name") {
-            let country = match val {
-                serde_json::value::Value::String(c) => c,
-                _ => &String::new(),
+fn decode_point(point: (f64, f64), transform: &Option<TransformParams>) -> (f64, f64) {
+    let mut x = 0.0;
+    let mut y = 0.0;
+
+    x = point.0;
+    y = point.1;
+
+    // 2. Aplicar transformación si existe
+    if let Some(t) = transform {
+        (
+            x * t.scale[0] + t.translate[0],
+            y * t.scale[1] + t.translate[1],
+        )
+    } else {
+        (x, y)
+    }
+}
+
+fn process_polygon(p: &Vec<ArcIndexes>, topology: &Topology) {
+    let arcs = &topology.arcs;
+    let transform = &topology.transform;
+
+    // println!("Processing polygon.");
+
+    for ring in p {
+        for &arc_index in ring {
+            // 1. Determinar el índice real y si está invertido
+            let (real_index, is_reversed) = if arc_index >= 0 {
+                (arc_index as usize, false)
+            } else {
+                ((!arc_index) as usize, true) // !n es el bitwise NOT para i32
             };
-            println!("El país es: {}", country);
-        } else {
-            println!("La clave 'pais' no existe.");
+            // 2. Obtener el poligono de la lista maestra
+            let polygon: &Arc = &topology.arcs[real_index];
+            //if let Some(arc_points) = topology.arcs.as_ref().and_then(|a| a.get(real_index)) {}
+            // if is_reversed {
+            //     let points_iter;
+            //     points_iter = arcs.iter().rev()
+            // } else {
+            //     let points_iter;
+            //     points_iter = arcs.iter();
+            // };
+            let polygon_points_iter: Box<dyn Iterator<Item = &Vec<f64>>> = if is_reversed {
+                Box::new(polygon.iter().rev())
+            } else {
+                Box::new(polygon.iter())
+            };
+
+            for point in polygon_points_iter {
+                // Aquí tienes tus f64: [x, y]
+                let x = point[0];
+                let y = point[1];
+                let pdecoded = decode_point((x, y), transform);
+                dbg!(pdecoded);
+                // Nota: Si el TopoJSON tiene 'transform', estos puntos
+                // siguen siendo enteros cuantizados. Deberás aplicar
+                // la fórmula (n * scale) + translate.
+            }
         }
     }
+}
 
-    let country = &g.properties.as_ref().unwrap()["name"];
-    print!("Country: {} -> ", g.properties.as_ref().unwrap()["name"]);
+fn process_geometry_polygon(topo: &Topology, p: &Vec<ArcIndexes>) {
+    //if let Some(ref arcs_indices_list) = geometry.arcs {
+    //         for ring in arcs_indices_list {
+    //             for &arc_index in ring {
+    //                 // 1. Determinar el índice real y si está invertido
+    //                 let (real_index, is_reversed) = if arc_index >= 0 {
+    //                     (arc_index as usize, false)
+    //                 } else {
+    //                     ((!arc_index) as usize, true) // !n es el bitwise NOT en Rust
+    //                 };
+    //
+    //                 // 2. Obtener el arco de la lista maestra
+    //                 if let Some(arc_points) = topo.arcs.as_ref().and_then(|a| a.get(real_index)) {
+    //
+    //                     // 3. Procesar los puntos
+    //                     let points_iter: Box<dyn Iterator<Item = &Vec<f64>>> = if is_reversed {
+    //                         Box::new(arc_points.iter().rev())
+    //                     } else {
+    //                         Box::new(arc_points.iter())
+    //                     };
+    //
+    //                     for point in points_iter {
+    //                         // Aquí tienes tus f64: [x, y]
+    //                         let x = point[0];
+    //                         let y = point[1];
+    //                         // Nota: Si el TopoJSON tiene 'transform', estos puntos
+    //                         // siguen siendo enteros cuantizados. Deberás aplicar
+    //                         // la fórmula (n * scale) + translate.
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //}
+}
+
+//fn process_geometry(g: &Geometry, transform: &Option<TransformParams>) {
+fn process_geometry(g: &Geometry, topology: &Topology) {
+    // if let Some(props) = &g.properties {
+    //     if let Some(val) = props.get("name") {
+    //         let country = match val {
+    //             serde_json::value::Value::String(c) => c,
+    //             _ => &String::new(),
+    //         };
+    //         println!("El país es: {}", country);
+    //     } else {
+    //         println!("La clave 'pais' no existe.");
+    //     }
+    // }
+
+    if let Some(country) = &g.properties {
+        print!("Country: {} -> ", country["name"]);
+    }
+
+    // let country = &g.properties.as_ref().unwrap()["name"];
+    // print!("Country: {} -> ", g.properties.as_ref().unwrap()["name"]);
     match &g.value {
         Value::Point(point) => {
             println!("Found Point");
@@ -47,13 +149,14 @@ fn process_geometry(g: &Geometry) {
         Value::MultiPoint(mp) => {
             println!("Found MultiPoint");
         }
-        Value::Polygon(arcs) => {
+        Value::Polygon(p) => {
             println!("Found Polygon");
+            process_polygon(p, topology);
             // for ring in rings {
             //   render_ring(&ring, &arcs, &transform);
             // }
         }
-        Value::MultiPolygon(arcs) => {
+        Value::MultiPolygon(mp) => {
             println!("Found MultiPolygon");
             // for polygon in polygons {
             //     for ring in polygon {
@@ -68,7 +171,7 @@ fn process_geometry(g: &Geometry) {
         Value::GeometryCollection(gc) => {
             println!("Found GeometryCollection with #{} elems.", gc.len());
             for internalg in gc {
-                process_geometry(internalg);
+                process_geometry(internalg, topology);
             }
         }
         _ => {
@@ -91,7 +194,7 @@ fn process_topology(topology: &Topology) {
         let geometry = &ng.geometry;
 
         // dbg!(geometry);
-        process_geometry(geometry);
+        process_geometry(geometry, topology);
     }
 }
 
