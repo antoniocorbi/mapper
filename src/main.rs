@@ -87,41 +87,6 @@ fn process_polygon(p: &Vec<ArcIndexes>, topology: &Topology) {
     }
 }
 
-fn process_geometry_polygon(topo: &Topology, p: &Vec<ArcIndexes>) {
-    //if let Some(ref arcs_indices_list) = geometry.arcs {
-    //         for ring in arcs_indices_list {
-    //             for &arc_index in ring {
-    //                 // 1. Determinar el índice real y si está invertido
-    //                 let (real_index, is_reversed) = if arc_index >= 0 {
-    //                     (arc_index as usize, false)
-    //                 } else {
-    //                     ((!arc_index) as usize, true) // !n es el bitwise NOT en Rust
-    //                 };
-    //
-    //                 // 2. Obtener el arco de la lista maestra
-    //                 if let Some(arc_points) = topo.arcs.as_ref().and_then(|a| a.get(real_index)) {
-    //
-    //                     // 3. Procesar los puntos
-    //                     let points_iter: Box<dyn Iterator<Item = &Vec<f64>>> = if is_reversed {
-    //                         Box::new(arc_points.iter().rev())
-    //                     } else {
-    //                         Box::new(arc_points.iter())
-    //                     };
-    //
-    //                     for point in points_iter {
-    //                         // Aquí tienes tus f64: [x, y]
-    //                         let x = point[0];
-    //                         let y = point[1];
-    //                         // Nota: Si el TopoJSON tiene 'transform', estos puntos
-    //                         // siguen siendo enteros cuantizados. Deberás aplicar
-    //                         // la fórmula (n * scale) + translate.
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //}
-}
-
 //fn process_geometry(g: &Geometry, transform: &Option<TransformParams>) {
 fn process_geometry(g: &Geometry, topology: &Topology) {
     // if let Some(props) = &g.properties {
