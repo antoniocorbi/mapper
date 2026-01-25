@@ -39,11 +39,22 @@
 
           # Librerías necesarias
           buildInputs = with pkgs; [
+            pkg-config
             openssl
           ] ++ runtimeLibs;
 
           # Configuración para que Rust encuentre las librerías gráficas
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath runtimeLibs;
+
+          # Variables de entorno críticas para que la crate 'openssl' compile
+          shellHook = ''
+            export PKG_CONFIG_PATH="${pkgs.openssl.dev}/lib/pkgconfig"
+            export OPENSSL_DIR="${pkgs.openssl.dev}"
+            export OPENSSL_LIB_DIR="${pkgs.openssl.out}/lib"
+            export OPENSSL_INCLUDE_DIR="${pkgs.openssl.dev}/include"
+
+            echo "🦀 Entorno Rust con OpenSSL listo!"
+          '';
         };
       });
 }
