@@ -59,18 +59,17 @@ fn process_polygon(p: &Vec<ArcIndexes>, topology: &Topology) {
             };
             // 2. Obtener el poligono de la lista maestra
             let polygon: &Arc = &topology.arcs[real_index];
-            //if let Some(arc_points) = topology.arcs.as_ref().and_then(|a| a.get(real_index)) {}
-            // if is_reversed {
-            //     let points_iter;
-            //     points_iter = arcs.iter().rev()
+
+            // let polygon_points_iter: Box<dyn Iterator<Item = &Vec<f64>>> = if is_reversed {
+            //     Box::new(polygon.iter().rev())
             // } else {
-            //     let points_iter;
-            //     points_iter = arcs.iter();
+            //     Box::new(polygon.iter())
             // };
-            let polygon_points_iter: Box<dyn Iterator<Item = &Vec<f64>>> = if is_reversed {
-                Box::new(polygon.iter().rev())
+
+            let mut polygon_points_iter: &mut dyn Iterator<Item = &Vec<f64>> = if is_reversed {
+                &mut polygon.iter().rev()
             } else {
-                Box::new(polygon.iter())
+                &mut polygon.iter()
             };
 
             for point in polygon_points_iter {
