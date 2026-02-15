@@ -41,6 +41,10 @@
           buildInputs = with pkgs; [
             pkg-config
             openssl
+            # Herramientas de Rust
+            cargo
+            rustc
+            rust-analyzer
           ] ++ runtimeLibs;
 
           # Configuración para que Rust encuentre las librerías gráficas
