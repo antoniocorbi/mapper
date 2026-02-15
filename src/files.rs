@@ -17,7 +17,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 
-use crate::types::{Lines, Point3D, Points};
+use crate::types::{Map, Point2D};
 
 fn parse_face(line: &str) -> Vec<usize> {
     line.split_whitespace() // Separa "f", "23/1/23", "3/2/3", etc.
@@ -34,7 +34,7 @@ fn parse_face(line: &str) -> Vec<usize> {
         .collect()
 }
 
-pub fn read_obj(fname: &str) -> io::Result<(Vec<Point3D>, Vec<Vec<usize>>, egui::Rect)> {
+pub fn read_map(fname: &str) -> io::Result<(Map, egui::Rect)> {
     // 1. Abrir el archivo
     let path = Path::new(fname);
     let file = File::open(path)?;
@@ -44,32 +44,21 @@ pub fn read_obj(fname: &str) -> io::Result<(Vec<Point3D>, Vec<Vec<usize>>, egui:
     let mut worldr: egui::Rect = egui::Rect::from_min_max(minxy, maxxy);
 
     // 2. Iterar sobre las líneas de forma eficiente
-    let mut vs = vec![];
-    let mut fs = vec![];
+    let mut m: Map = vec![];
     for line in reader.lines() {
         let line = line?; // Manejar posibles errores de lectura
 
-        // 3. Filtrar por el prefijo deseado
-        // if line.starts_with("v ") || line.starts_with("f ") {
-        //     // Aquí puedes procesar la cadena
-        //     println!("Procesando: {}", line);
-        //
-        //     // Si quisieras extraer los números, podrías usar line.split_whitespace()
-        // }
-
-        if line.starts_with("v ") {
+        if !line.starts_with("#") && line.len() > 0 {
             let coords: Vec<f32> = line
                 .split_whitespace()
-                .skip(1) // Saltarse la "v"
                 .map(|s| s.parse().unwrap())
                 .collect();
-            // Ahora coords es algo como [1.0, 0.5, -2.0]
-            let p = Point3D {
+            // Ahora coords es algo como [1.0, 0.5]
+            let p = Point2D {
                 x: coords[0],
                 y: coords[1],
-                z: coords[2],
             };
-            vs.push(p);
+            m.push(p);
 
             // Compute new worldr
             if p.x < worldr.min.x {
@@ -85,14 +74,8 @@ pub fn read_obj(fname: &str) -> io::Result<(Vec<Point3D>, Vec<Vec<usize>>, egui:
                 worldr.max.y = p.y;
             }
         }
-        // println!("{:?}", vs);
-
-        if line.starts_with("f ") {
-            let vertices = parse_face(&line);
-            fs.push(vertices);
-        }
-        //println!("{:?}", fs);
+        // println!("{:?}", m);
     }
 
-    Ok((vs, fs, worldr))
+    Ok((m, worldr))
 }

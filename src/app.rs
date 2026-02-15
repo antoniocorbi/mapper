@@ -14,7 +14,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // -- Uses: ---------------------------------------------------------------
-use crate::types::{Axe, Line, Lines, Point2D, Point3D, Points};
+use crate::types::{Map, Point2D};
 use egui::{pos2, remap, Color32, Pos2, Rect, Stroke};
 
 // -- Constants: ----------------------------------------------------------
@@ -25,52 +25,28 @@ const MIN_ANGLE_STEP: f32 = 0.00;
 const MAX_ANGLE_STEP: f32 = 10.00;
 
 // -- Structs: ------------------------------------------------------------
-pub struct App3D {
-    rotx: bool,
-    roty: bool,
-    rotz: bool,
-    draw_vs: bool,
-    draw_fs: bool,
-    angle_step: f32,
+pub struct AppMap {
     zoom: f32,
     file_path: String,
     error_message: String,
-    vs: Vec<Point3D>,
-    fs: Vec<Vec<usize>>,
+    points: Map,
     worldr: Rect,
     invert_y: bool,
-    dx: f32,
-    dy: f32,
 }
 
-// -- Implementation App3D: -----------------------------------------------
-impl App3D {
+// -- Implementation AppMap: -----------------------------------------------
+impl AppMap {
     pub fn new() -> Self {
         let worldr: Rect = Rect::from_min_max(pos2(-1.0, -1.0), pos2(1.0, 1.0));
-        let fs: Vec<Vec<usize>>;
-
-        // Convertimos el &[&[usize]] a Vec<Vec<usize>>
-        fs = crate::penger::FS
-            .iter()
-            .map(|inner_slice| inner_slice.to_vec())
-            .collect();
+        let points = vec![];
 
         Self {
-            rotx: false,
-            roty: true,
-            rotz: false,
-            draw_vs: false,
-            draw_fs: true,
-            angle_step: 0.0,
             zoom: 1.0,
             file_path: String::new(),
             error_message: String::new(),
-            vs: crate::penger::VS.to_vec(),
-            fs,
+            points,
             worldr,
             invert_y: false,
-            dx: 0.0,
-            dy: 0.0,
         }
     }
 
@@ -87,7 +63,7 @@ impl App3D {
         let color = Color32::CYAN;
 
         if zoom < 1.5 {
-            radio = 1.5;
+            radio = 0.25;
         }
         if zoom > 4.0 {
             radio = 4.0;
@@ -101,103 +77,27 @@ impl App3D {
         painter.line(lines.to_vec(), stroke);
     }
 
-    pub fn draw_object3D(&self, painter: &egui::Painter) {
+    fn draw_map(&self, painter: &egui::Painter) {
         let dz = MAX_ZOOM - self.zoom;
         let worldr: Rect = self.worldr;
         let screenr: Rect = painter.clip_rect();
-        static mut ANGLE: f32 = 0.0;
-        unsafe {
-            ANGLE = (ANGLE + self.angle_step) % 360.0;
-            // if ANGLE > 360.0 {
-            //     ANGLE = 0.0;
-            // }
-        }
 
-        // Draw points@vertices
-        if self.draw_vs {
-            //for v in crate::penger::VS {
-            for v in self.vs.iter() {
-                let mut a = *v;
-                if self.invert_y {
-                    a.y = -1.0 * a.y;
-                }
-
-                // Deltas
-                a.x += self.dx;
-                a.y += self.dy;
-                //dbg!(a.x);
-
-                unsafe {
-                    if self.rotx {
-                        a = a.rotate(ANGLE, Axe::X);
-                    }
-                    if self.roty {
-                        a = a.rotate(ANGLE, Axe::Y);
-                    }
-                    if self.rotz {
-                        a = a.rotate(ANGLE, Axe::Z);
-                    }
-                }
-                let p2d = a.convert_to_2D(dz, &worldr, &screenr);
-                App3D::draw_point(p2d, self.zoom, painter);
-            }
-        }
-
-        // Draw Lines between vertices
-        if self.draw_fs {
-            let mut lines: Vec<Pos2> = vec![];
-            for f in self.fs.iter() {
-                for i in 0..f.len() - 1 {
-                    let mut a = self.vs[f[i] as usize];
-                    let mut b = self.vs[f[(i + 1) % f.len()] as usize];
-                    if self.invert_y {
-                        a.y = -1.0 * a.y; // Invert Y-coordinate top-down
-                        b.y = -1.0 * b.y; // Invert Y-coordinate top-down
-                    }
-
-                    // Deltas
-                    a.x += self.dx;
-                    b.x += self.dx;
-
-                    a.y += self.dy;
-                    b.y += self.dy;
-
-                    unsafe {
-                        if self.rotx {
-                            a = a.rotate(ANGLE, Axe::X);
-                            b = b.rotate(ANGLE, Axe::X);
-                        }
-                        if self.roty {
-                            a = a.rotate(ANGLE, Axe::Y);
-                            b = b.rotate(ANGLE, Axe::Y);
-                        }
-                        if self.rotz {
-                            a = a.rotate(ANGLE, Axe::Z);
-                            b = b.rotate(ANGLE, Axe::Z);
-                        }
-                    }
-
-                    let p1 = a.convert_to_2D(dz, &worldr, &screenr);
-                    let p2 = b.convert_to_2D(dz, &worldr, &screenr);
-
-                    let p1: Pos2 = pos2(p1.x, p1.y);
-                    let p2: Pos2 = pos2(p2.x, p2.y);
-                    lines.push(p1);
-                    lines.push(p2);
-                }
-            }
-            App3D::draw_lines(&lines, painter);
+        for wp in &self.points {
+            let mut iwp = *wp;
+            iwp.y *= -1.0;
+            let sp = iwp.world2screen(worldr, screenr);
+            AppMap::draw_point(sp, self.zoom, painter);
         }
     }
 
     pub fn draw_contents(&self, painter: &egui::Painter) {
         //self.draw_circle(painter);
-        self.draw_object3D(painter);
+        self.draw_map(painter);
     }
 }
 
-// -- Implementation eframe@App3D: ----------------------------------------
-impl eframe::App for App3D {
+// -- Implementation eframe@AppMap: ----------------------------------------
+impl eframe::App for AppMap {
     /// Called by the framework to save state before shutdown.
     // fn save(&mut self, storage: &mut dyn eframe::Storage) {
     //     eframe::set_value(storage, eframe::APP_KEY, self);
@@ -212,7 +112,7 @@ impl eframe::App for App3D {
             // Panel de controles en la parte superior
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.colored_label(egui::Color32::RED, "·:Penger 3D:·");
+                    ui.colored_label(egui::Color32::RED, "·:Mapper:·");
 
                     ui.colored_label(egui::Color32::LIGHT_BLUE, "Theme: ");
                     egui::widgets::global_theme_preference_buttons(ui);
@@ -231,10 +131,10 @@ impl eframe::App for App3D {
                 ui.separator();
 
                 ui.horizontal(|ui| {
-                    ui.label("Obj file:");
+                    ui.label("Map file:");
                     ui.text_edit_singleline(&mut self.file_path);
                     if ui.button("Load file").clicked() {
-                        match crate::files::read_obj(&self.file_path) {
+                        match crate::files::read_map(&self.file_path) {
                             Err(e) => {
                                 // Error reading the objfile
                                 self.error_message = format!("Last Error: '{}'.", e);
@@ -243,12 +143,13 @@ impl eframe::App for App3D {
                                 }
                             }
 
-                            Ok((points, lines, wr)) => {
+                            Ok((points, wr)) => {
                                 // We had success reading the objfile
                                 // 1. Process obj file just read
-                                self.vs = points;
-                                self.fs = lines;
+                                self.points = points;
                                 self.worldr = wr;
+
+                                println!("File read: wr: {:?}", wr);
 
                                 // 2. Restart timeout values
                                 unsafe {
@@ -273,66 +174,66 @@ impl eframe::App for App3D {
 
                 ui.separator();
 
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut self.rotx, "Rotate X");
-                    ui.checkbox(&mut self.roty, "Rotate Y");
-                    ui.checkbox(&mut self.rotz, "Rotate Z");
-                    ui.separator();
-
-                    ui.horizontal(|ui| {
-                        ui.checkbox(&mut self.draw_vs, "Vertices");
-                        ui.checkbox(&mut self.draw_fs, "Faces");
-                    });
-
-                    ui.separator();
-                    ui.colored_label(egui::Color32::LIGHT_YELLOW, "Angle Step: ");
-                    ui.add(
-                        egui::DragValue::new(&mut self.angle_step)
-                            .speed(0.1)
-                            .range(MIN_ANGLE_STEP..=MAX_ANGLE_STEP),
-                    );
-
-                    ui.separator();
-                    ui.colored_label(egui::Color32::LIGHT_YELLOW, "Zoom: ");
-                    ui.add(
-                        egui::DragValue::new(&mut self.zoom)
-                            .speed(0.1)
-                            .range(MIN_ZOOM..=MAX_ZOOM),
-                    );
-                    ui.separator();
-
-                    if ui.button("Restart View").clicked() {
-                        //self.calculate_bounds_and_fit(ui.available_rect_before_wrap());
-                        *self = Self::new();
-                    }
-                });
-
-                ui.separator();
-
-                ui.horizontal(|ui| {
-                    let steps = 50.0;
-                    let max_dx = (self.worldr.max.x - self.worldr.min.x) / steps;
-                    let max_dx = 0.75;
-                    ui.checkbox(&mut self.invert_y, "Invert Y axis");
-                    ui.separator();
-                    ui.colored_label(egui::Color32::LIGHT_YELLOW, "Dx:");
-                    ui.add(
-                        egui::DragValue::new(&mut self.dx)
-                            //.speed(max_dx / steps)
-                            .speed(0.01)
-                            .range(-max_dx..=max_dx),
-                    );
-                    let max_dy = (self.worldr.max.y - self.worldr.min.y) / steps;
-                    let max_dy = 0.75;
-                    ui.colored_label(egui::Color32::LIGHT_YELLOW, "Dy:");
-                    ui.add(
-                        egui::DragValue::new(&mut self.dy)
-                            //.speed(max_dx / steps)
-                            .speed(0.01)
-                            .range(-max_dy..=max_dy),
-                    );
-                });
-                ui.separator();
+                // ui.horizontal(|ui| {
+                //     ui.checkbox(&mut self.rotx, "Rotate X");
+                //     ui.checkbox(&mut self.roty, "Rotate Y");
+                //     ui.checkbox(&mut self.rotz, "Rotate Z");
+                //     ui.separator();
+                //
+                //     ui.horizontal(|ui| {
+                //         ui.checkbox(&mut self.draw_vs, "Vertices");
+                //         ui.checkbox(&mut self.draw_fs, "Faces");
+                //     });
+                //
+                //     ui.separator();
+                //     ui.colored_label(egui::Color32::LIGHT_YELLOW, "Angle Step: ");
+                //     ui.add(
+                //         egui::DragValue::new(&mut self.angle_step)
+                //             .speed(0.1)
+                //             .range(MIN_ANGLE_STEP..=MAX_ANGLE_STEP),
+                //     );
+                //
+                //     ui.separator();
+                //     ui.colored_label(egui::Color32::LIGHT_YELLOW, "Zoom: ");
+                //     ui.add(
+                //         egui::DragValue::new(&mut self.zoom)
+                //             .speed(0.1)
+                //             .range(MIN_ZOOM..=MAX_ZOOM),
+                //     );
+                //     ui.separator();
+                //
+                //     if ui.button("Restart View").clicked() {
+                //         //self.calculate_bounds_and_fit(ui.available_rect_before_wrap());
+                //         *self = Self::new();
+                //     }
+                // });
+                //
+                // ui.separator();
+                //
+                // ui.horizontal(|ui| {
+                //     let steps = 50.0;
+                //     let max_dx = (self.worldr.max.x - self.worldr.min.x) / steps;
+                //     let max_dx = 0.75;
+                //     ui.checkbox(&mut self.invert_y, "Invert Y axis");
+                //     ui.separator();
+                //     ui.colored_label(egui::Color32::LIGHT_YELLOW, "Dx:");
+                //     ui.add(
+                //         egui::DragValue::new(&mut self.dx)
+                //             //.speed(max_dx / steps)
+                //             .speed(0.01)
+                //             .range(-max_dx..=max_dx),
+                //     );
+                //     let max_dy = (self.worldr.max.y - self.worldr.min.y) / steps;
+                //     let max_dy = 0.75;
+                //     ui.colored_label(egui::Color32::LIGHT_YELLOW, "Dy:");
+                //     ui.add(
+                //         egui::DragValue::new(&mut self.dy)
+                //             //.speed(max_dx / steps)
+                //             .speed(0.01)
+                //             .range(-max_dy..=max_dy),
+                //     );
+                // });
+                // ui.separator();
             });
 
             // El área de dibujo para el objeto 3D

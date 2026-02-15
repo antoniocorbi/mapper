@@ -1,0 +1,8 @@
+[[bin]]
+# El nombre del binario que quieres que Trunk compile para WASM
+name = "formulars"
+
+[build]
+filehash = false
+# Asegura que el punto de entrada sea tu index.html
+target = "index.html"

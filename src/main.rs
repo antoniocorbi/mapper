@@ -1,16 +1,6 @@
 mod app;
 mod files;
-mod penger;
 mod types;
-
-// fn main() {
-//     let l: types::Line;
-//     let ll: types::Lines;
-//     let p: types::Point3D;
-//
-//     println!("point3d[300]  = {:?}", crate::penger::VS[300]);
-//     println!("line[300]  = {:?}", crate::penger::FS[300]);
-// }
 
 // -- Native App: ---------------------------------------------------------
 // When compiling natively:
@@ -36,7 +26,7 @@ fn main() -> eframe::Result {
         native_options,
         Box::new(|cc| {
             let cc = cc;
-            Ok(Box::new(app::App3D::new()))
+            Ok(Box::new(app::AppMap::new()))
         }),
     )
 }
@@ -68,7 +58,7 @@ fn main() {
             .start(
                 canvas,
                 web_options,
-                Box::new(|cc| Ok(Box::new(app::App3D::new()))),
+                Box::new(|cc| Ok(Box::new(app::AppMap::new()))),
             )
             .await;
 
