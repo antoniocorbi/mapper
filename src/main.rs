@@ -122,11 +122,10 @@ fn process_geometry(g: &Geometry, topology: &Topology) {
         }
         Value::MultiPolygon(mp) => {
             println!("Found MultiPolygon");
-            // for polygon in polygons {
-            //     for ring in polygon {
-            //       render_ring(&ring, &arcs, &transform);
-            //     }
-            // }
+            for p in mp {
+                println!("Processing POLYGON from MultiPolygon");
+                process_polygon(p, topology);
+            }
         }
         Value::LineString(arcs) => {
             println!("Found LineStrings");
