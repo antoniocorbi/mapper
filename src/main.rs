@@ -1,235 +1,90 @@
-use std::fs::File;
-use std::io::BufReader;
-use topojson::{Arc, ArcIndexes, Geometry, Position, Topology, TransformParams, Value};
+mod app;
+mod files;
+mod penger;
+mod types;
 
-fn decode_arcs(arc: &Vec<Position>, transform: &Option<TransformParams>) -> Vec<(f64, f64)> {
-    let mut x = 0.0;
-    let mut y = 0.0;
-
-    arc.iter()
-        .map(|point| {
-            // 1. Delta decoding (sumar al valor anterior)
-            x += point[0];
-            y += point[1];
-
-            // 2. Aplicar transformación si existe
-            if let Some(t) = transform {
-                (
-                    x * t.scale[0] + t.translate[0],
-                    y * t.scale[1] + t.translate[1],
-                )
-            } else {
-                (x, y)
-            }
-        })
-        .collect()
-}
-
-fn decode_point(point: (f64, f64), transform: &Option<TransformParams>) -> (f64, f64) {
-    let mut x = 0.0;
-    let mut y = 0.0;
-
-    x = point.0;
-    y = point.1;
-
-    // 2. Aplicar transformación si existe
-    if let Some(t) = transform {
-        (
-            x * t.scale[0] + t.translate[0],
-            y * t.scale[1] + t.translate[1],
-        )
-    } else {
-        (x, y)
-    }
-}
-
-fn process_polygon(p: &Vec<ArcIndexes>, topology: &Topology) {
-    let arcs = &topology.arcs;
-    let transform = &topology.transform;
-
-    // println!("Processing polygon.");
-
-    for ring in p {
-        for &arc_index in ring {
-            // 1. Determinar el índice real y si está invertido
-            let (real_index, is_reversed) = if arc_index >= 0 {
-                (arc_index as usize, false)
-            } else {
-                ((!arc_index) as usize, true) // !n es el bitwise NOT para i32
-            };
-            // 2. Obtener el poligono de la lista maestra
-            let polygon: &Arc = &topology.arcs[real_index];
-
-            // let polygon_points_iter: Box<dyn Iterator<Item = &Vec<f64>>> = if is_reversed {
-            //     Box::new(polygon.iter().rev())
-            // } else {
-            //     Box::new(polygon.iter())
-            // };
-
-            let mut polygon_points_iter: &mut dyn Iterator<Item = &Vec<f64>> = if is_reversed {
-                &mut polygon.iter().rev()
-            } else {
-                &mut polygon.iter()
-            };
-
-            for point in polygon_points_iter {
-                // Aquí tienes tus f64: [x, y]
-                let x = point[0];
-                let y = point[1];
-                let pdecoded = decode_point((x, y), transform);
-                dbg!(pdecoded);
-                // Nota: Si el TopoJSON tiene 'transform', estos puntos
-                // siguen siendo enteros cuantizados. Deberás aplicar
-                // la fórmula (n * scale) + translate.
-            }
-        }
-    }
-}
-
-//fn process_geometry(g: &Geometry, transform: &Option<TransformParams>) {
-fn process_geometry(g: &Geometry, topology: &Topology) {
-    // if let Some(props) = &g.properties {
-    //     if let Some(val) = props.get("name") {
-    //         let country = match val {
-    //             serde_json::value::Value::String(c) => c,
-    //             _ => &String::new(),
-    //         };
-    //         println!("El país es: {}", country);
-    //     } else {
-    //         println!("La clave 'pais' no existe.");
-    //     }
-    // }
-
-    if let Some(country) = &g.properties {
-        print!("Country: {} -> ", country["name"]);
-    }
-
-    // let country = &g.properties.as_ref().unwrap()["name"];
-    // print!("Country: {} -> ", g.properties.as_ref().unwrap()["name"]);
-    match &g.value {
-        Value::Point(point) => {
-            println!("Found Point");
-        }
-        Value::MultiPoint(mp) => {
-            println!("Found MultiPoint");
-        }
-        Value::Polygon(p) => {
-            println!("Found Polygon");
-            process_polygon(p, topology);
-            // for ring in rings {
-            //   render_ring(&ring, &arcs, &transform);
-            // }
-        }
-        Value::MultiPolygon(mp) => {
-            println!("Found MultiPolygon");
-            for p in mp {
-                println!("Processing POLYGON from MultiPolygon");
-                process_polygon(p, topology);
-            }
-        }
-        Value::LineString(arcs) => {
-            println!("Found LineStrings");
-            // render_ring(&ring, &arcs, &transform);
-        }
-        Value::GeometryCollection(gc) => {
-            println!("Found GeometryCollection with #{} elems.", gc.len());
-            for internalg in gc {
-                process_geometry(internalg, topology);
-            }
-        }
-        _ => {
-            // Otros tipos como Point o MultiPoint no usan la propiedad 'arcs'
-            // dbg!(&geometry.value);
-            println!("Tipo de geometría no soportado para dibujo por arcos.");
-        }
-    }
-}
-
-fn process_topology(topology: &Topology) {
-    let transform = &topology.transform;
-    let arcs = &topology.arcs;
-
-    // dbg!(&topology.bbox);
-
-    // 1. Acceder a los objetos
-    for ng in &topology.objects {
-        println!("Named Geometry: {}", ng.name);
-        let geometry = &ng.geometry;
-
-        // dbg!(geometry);
-        process_geometry(geometry, topology);
-    }
-}
-
-/// Función auxiliar para procesar una lista de índices de arcos (un "ring" o línea)
-// fn render_ring(
-//     ring_indices: &Vec<i64>,
-//     all_arcs: &Vec<Vec<Vec<f64>>>,
-//     transform: &Option<topojson::TransformParams>,
-// ) {
-//     for &arc_index in ring_indices {
-//         // Manejo de índices negativos (Bitwise NOT en Rust para TopoJSON)
-//         let (idx, reverse) = if arc_index < 0 {
-//             ((!arc_index) as usize, true)
-//         } else {
-//             (arc_index as usize, false)
-//         };
+// fn main() {
+//     let l: types::Line;
+//     let ll: types::Lines;
+//     let p: types::Point3D;
 //
-//         if let Some(raw_points) = all_arcs.get(idx) {
-//             let mut coords = decode_arc(raw_points, transform);
-//
-//             if reverse {
-//                 coords.reverse();
-//             }
-//
-//             // Aquí enviarías 'coords' a tu motor gráfico
-//             for (x, y) in coords {
-//                 // draw_point(x, y);
-//             }
-//         }
-//     }
+//     println!("point3d[300]  = {:?}", crate::penger::VS[300]);
+//     println!("line[300]  = {:?}", crate::penger::FS[300]);
 // }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 0. PWD
-    // let cwd = std::env::current_dir()?;
-    // println!("CWD: {}", cwd.display());
+// -- Native App: ---------------------------------------------------------
+// When compiling natively:
+#[cfg(not(target_arch = "wasm32"))]
+fn main() -> eframe::Result {
+    //env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
-    // 1. Cargar el archivo
-    let file = File::open("/home/acorbi/projects/mapper/assets/world-lowres.topo.json")?;
-    let reader = BufReader::new(file);
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_app_id("Floater") // niri uses this app_id to make the window floating
+            .with_inner_size([1024.0, 768.0])
+            .with_min_inner_size([500.0, 300.0])
+            .with_icon(
+                // NOTE: Adding an icon is optional
+                eframe::icon_data::from_png_bytes(&include_bytes!("../assets/icon-256.png")[..])
+                    .expect("Failed to load icon"),
+            ),
+        ..Default::default()
+    };
 
-    // 2. Deserializar a la estructura Topology
-    let topology: Topology = serde_json::from_reader(reader)?;
+    eframe::run_native(
+        "Penger3D GUI",
+        native_options,
+        Box::new(|cc| {
+            let cc = cc;
+            Ok(Box::new(app::App3D::new()))
+        }),
+    )
+}
 
-    // println!(
-    //     "Transform: {:#?} ",
-    //     topology
-    //         .transform
-    //         .as_ref()
-    //         .ok_or("No transform available.")?
-    // );
+// -- Web App: ------------------------------------------------------------
+// When compiling to web using trunk:
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    use eframe::wasm_bindgen::JsCast as _;
 
-    process_topology(&topology);
+    // Redirect `log` message to `console.log` and friends:
+    //eframe::WebLogger::init(log::LevelFilter::Debug).ok();
 
-    // 3. Acceder a los arcos globales
-    // Los arcos son una lista de listas de posiciones: Vec<Vec<Vec<f64>>>
-    // let arcs = &topology.arcs;
-    //
-    // println!("El archivo tiene {} arcos.", arcs.len());
+    let web_options = eframe::WebOptions::default();
 
-    // 4. Ejemplo: Recorrer el primer arco para obtener puntos
-    // for (i, arc) in arcs.iter().enumerate() {
-    //     //if let Some(first_arc) = arcs.get(0) {
-    //     println!("Arco: {i}\n-------");
-    //     for position in arc {
-    //         // position es un Vec<f64>, usualmente [x, y]
-    //         let x = position[0];
-    //         let y = position[1];
-    //         println!("Punto del arco: {}, {}", x, y);
-    //     }
-    //     println!();
-    // }
+    wasm_bindgen_futures::spawn_local(async {
+        let document = web_sys::window()
+            .expect("No window")
+            .document()
+            .expect("No document");
 
-    Ok(())
+        let canvas = document
+            .get_element_by_id("the_canvas_id")
+            .expect("Failed to find the_canvas_id")
+            .dyn_into::<web_sys::HtmlCanvasElement>()
+            .expect("the_canvas_id was not a HtmlCanvasElement");
+
+        let start_result = eframe::WebRunner::new()
+            .start(
+                canvas,
+                web_options,
+                Box::new(|cc| Ok(Box::new(app::App3D::new()))),
+            )
+            .await;
+
+        // Remove the loading text and spinner:
+        if let Some(loading_text) = document.get_element_by_id("loading_text") {
+            match start_result {
+                Ok(_) => {
+                    loading_text.remove();
+                }
+                Err(e) => {
+                    loading_text.set_inner_html(
+                        "<p> The app has crashed. See the developer console for details. </p>",
+                    );
+                    panic!("Failed to start eframe: {e:?}");
+                }
+            }
+        }
+    });
 }
