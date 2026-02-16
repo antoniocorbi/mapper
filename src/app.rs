@@ -18,8 +18,8 @@ use crate::types::{Map, Point2D};
 use egui::{pos2, remap, Color32, Pos2, Rect, Stroke};
 
 // -- Constants: ----------------------------------------------------------
-const MIN_ZOOM: f32 = 0.001;
-const MAX_ZOOM: f32 = 15.00;
+const MIN_ZOOM: f32 = 0.25;
+const MAX_ZOOM: f32 = 30.00;
 
 const MIN_WIDTH: f32 = 0.01;
 const MAX_WIDTH: f32 = 2.00;
@@ -180,7 +180,7 @@ impl eframe::App for AppMap {
                     // ui.separator();
 
                     ui.separator();
-                    ui.colored_label(egui::Color32::LIGHT_YELLOW, "Zoom: ");
+                    ui.colored_label(egui::Color32::RED, "Zoom: ");
                     ui.add(
                         egui::DragValue::new(&mut self.zoom)
                             .speed(0.1)
@@ -189,7 +189,7 @@ impl eframe::App for AppMap {
                     ui.separator();
 
                     ui.separator();
-                    ui.colored_label(egui::Color32::YELLOW, "Line Width: ");
+                    ui.colored_label(egui::Color32::RED, "Line Width: ");
                     ui.add(
                         egui::DragValue::new(&mut self.line_width)
                             .speed(0.01)
