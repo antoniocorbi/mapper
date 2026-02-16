@@ -210,20 +210,72 @@ impl eframe::App for AppMap {
             });
 
             // El área de dibujo para el objeto 3D
-            let mut available_rect_before_wrap = ui.available_rect_before_wrap();
-            available_rect_before_wrap.max.y -= 70.0; // Important for clipping
-            let painter = ui.painter_at(available_rect_before_wrap);
+            let mut available_size_before_wrap = ui.available_size_before_wrap(); //_rect_before_wrap();
+            available_size_before_wrap.y -= 70.0; // Important for clipping
+                                                  //let painter = ui.painter_at(available_rect_before_wrap);
 
-            // Dibujar un fondo para el área del mapa
-            painter.rect_filled(
-                available_rect_before_wrap,
-                0.0,
-                egui::Color32::from_rgb(50, 50, 50),
-            );
-            // let screenr: Rect = painter.clip_rect();
-            // painter.set_clip_rect(screenr);
+            // 1. Definimos el tamaño de la "ventana" visible del painter
+            let window_size = available_size_before_wrap;
 
-            self.draw_contents(&painter);
+            use egui::Vec2;
+            // 2. Reservamos ese espacio en la UI
+            let (outer_rect, _) = ui.allocate_exact_size(window_size, egui::Sense::hover());
+
+            // 3. Creamos una UI hija usando el nuevo patrón de UiBuilder y new_child
+            let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(outer_rect));
+            egui::ScrollArea::both() // Permite scroll en ambas direcciones
+                .auto_shrink([false; 2]) // Opcional: evita que el área se colapse
+                .max_height(window_size.y) // Forzamos el límite de la zona de recorte
+                .max_width(window_size.x)
+                .show(&mut child_ui, |ui| {
+                    // 1. Define el tamaño total de tu "mapa" o dibujo
+                    let canvas_size = Vec2::new(1000.0, 1000.0);
+
+                    // 2. Reserva el espacio y obtén el Painter
+                    // allocate_painter devuelve una respuesta (para eventos) y el painter
+                    let (response, painter) =
+                        ui.allocate_painter(canvas_size, egui::Sense::hover());
+
+                    // 3. Dibuja usando coordenadas relativas al área reservada
+                    let rect = response.rect; // Este es el Rect que abarca los 1000x1000 píxeles
+
+                    // Ejemplo: Dibujar una línea que cruza todo el canvas
+                    painter
+                        .line_segment([rect.left_top(), rect.right_bottom()], (2.0, Color32::RED));
+
+                    // Ejemplo: Un círculo en el medio del área grande
+                    painter.circle_filled(rect.center(), 50.0, Color32::BLUE);
+
+                    // Texto para orientarse
+                    painter.text(
+                        rect.left_top() + Vec2::new(10.0, 20.0),
+                        egui::Align2::LEFT_TOP,
+                        "Esquina superior izquierda",
+                        egui::FontId::proportional(20.0),
+                        Color32::WHITE,
+                    );
+                });
+            // egui::ScrollArea::both() // Permite scroll en ambas direcciones
+            //     .auto_shrink([false; 2]) // Opcional: evita que el área se colapse
+            //     .show(ui, |ui| {
+            //         // 1. Define el tamaño total de tu "mapa" o dibujo
+            //         let canvas_size = egui::Vec2::new(1000.0, 1000.0);
+            //
+            //         // 2. Reserva el espacio y obtén el Painter
+            //         // allocate_painter devuelve una respuesta (para eventos) y el painter
+            //         let (response, painter) =
+            //             ui.allocate_painter(canvas_size, egui::Sense::hover());
+            //
+            //         // Dibujar un fondo para el área del mapa
+            //         painter.rect_filled(
+            //             available_rect_before_wrap,
+            //             0.0,
+            //             egui::Color32::from_rgb(50, 50, 50),
+            //         );
+            //         // let screenr: Rect = painter.clip_rect();
+            //         // painter.set_clip_rect(screenr);
+            //         self.draw_contents(&painter);
+            //     });
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 powered_by_egui_and_eframe_and_me(ui);
