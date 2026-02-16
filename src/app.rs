@@ -21,12 +21,13 @@ use egui::{pos2, remap, Color32, Pos2, Rect, Stroke};
 const MIN_ZOOM: f32 = 0.001;
 const MAX_ZOOM: f32 = 15.00;
 
-const MIN_ANGLE_STEP: f32 = 0.00;
-const MAX_ANGLE_STEP: f32 = 10.00;
+const MIN_WIDTH: f32 = 0.01;
+const MAX_WIDTH: f32 = 2.00;
 
 // -- Structs: ------------------------------------------------------------
 pub struct AppMap {
     zoom: f32,
+    line_width: f32,
     file_path: String,
     error_message: String,
     points: Map,
@@ -42,15 +43,16 @@ impl AppMap {
 
         Self {
             zoom: 1.0,
-            file_path: String::new(),
+            line_width: 0.05,
+            file_path: String::from("assets/coastline.dat"),
             error_message: String::new(),
             points,
             worldr,
-            invert_y: false,
+            invert_y: true,
         }
     }
 
-    fn draw_point(p: Point2D, zoom: f32, painter: &egui::Painter) {
+    fn draw_point(p: Point2D, zoom: f32, line_width: f32, painter: &egui::Painter) {
         // También puedes obtener los límites
         // let min = painter.clip_rect().min; // Esquina superior izquierda (Pos2)
         // let max = painter.clip_rect().max; // Esquina inferior derecha (Pos2)
@@ -62,12 +64,7 @@ impl AppMap {
         // let color = Color32::from_rgb(255, 255, 255);
         let color = Color32::CYAN;
 
-        if zoom < 1.5 {
-            radio = 0.25;
-        }
-        if zoom > 4.0 {
-            radio = 4.0;
-        }
+        radio = line_width;
 
         painter.circle_filled(centro, radio, color);
     }
@@ -78,15 +75,17 @@ impl AppMap {
     }
 
     fn draw_map(&self, painter: &egui::Painter) {
-        let dz = MAX_ZOOM - self.zoom;
-        let worldr: Rect = self.worldr;
+        //let dz = MAX_ZOOM - self.zoom;
+        let worldr: Rect = self.worldr / self.zoom;
         let screenr: Rect = painter.clip_rect();
 
         for wp in &self.points {
             let mut iwp = *wp;
-            iwp.y *= -1.0;
+            if self.invert_y {
+                iwp.y *= -1.0;
+            }
             let sp = iwp.world2screen(worldr, screenr);
-            AppMap::draw_point(sp, self.zoom, painter);
+            AppMap::draw_point(sp, self.zoom, self.line_width, painter);
         }
     }
 
@@ -174,66 +173,39 @@ impl eframe::App for AppMap {
 
                 ui.separator();
 
-                // ui.horizontal(|ui| {
-                //     ui.checkbox(&mut self.rotx, "Rotate X");
-                //     ui.checkbox(&mut self.roty, "Rotate Y");
-                //     ui.checkbox(&mut self.rotz, "Rotate Z");
-                //     ui.separator();
-                //
-                //     ui.horizontal(|ui| {
-                //         ui.checkbox(&mut self.draw_vs, "Vertices");
-                //         ui.checkbox(&mut self.draw_fs, "Faces");
-                //     });
-                //
-                //     ui.separator();
-                //     ui.colored_label(egui::Color32::LIGHT_YELLOW, "Angle Step: ");
-                //     ui.add(
-                //         egui::DragValue::new(&mut self.angle_step)
-                //             .speed(0.1)
-                //             .range(MIN_ANGLE_STEP..=MAX_ANGLE_STEP),
-                //     );
-                //
-                //     ui.separator();
-                //     ui.colored_label(egui::Color32::LIGHT_YELLOW, "Zoom: ");
-                //     ui.add(
-                //         egui::DragValue::new(&mut self.zoom)
-                //             .speed(0.1)
-                //             .range(MIN_ZOOM..=MAX_ZOOM),
-                //     );
-                //     ui.separator();
-                //
-                //     if ui.button("Restart View").clicked() {
-                //         //self.calculate_bounds_and_fit(ui.available_rect_before_wrap());
-                //         *self = Self::new();
-                //     }
-                // });
-                //
-                // ui.separator();
-                //
-                // ui.horizontal(|ui| {
-                //     let steps = 50.0;
-                //     let max_dx = (self.worldr.max.x - self.worldr.min.x) / steps;
-                //     let max_dx = 0.75;
-                //     ui.checkbox(&mut self.invert_y, "Invert Y axis");
-                //     ui.separator();
-                //     ui.colored_label(egui::Color32::LIGHT_YELLOW, "Dx:");
-                //     ui.add(
-                //         egui::DragValue::new(&mut self.dx)
-                //             //.speed(max_dx / steps)
-                //             .speed(0.01)
-                //             .range(-max_dx..=max_dx),
-                //     );
-                //     let max_dy = (self.worldr.max.y - self.worldr.min.y) / steps;
-                //     let max_dy = 0.75;
-                //     ui.colored_label(egui::Color32::LIGHT_YELLOW, "Dy:");
-                //     ui.add(
-                //         egui::DragValue::new(&mut self.dy)
-                //             //.speed(max_dx / steps)
-                //             .speed(0.01)
-                //             .range(-max_dy..=max_dy),
-                //     );
-                // });
-                // ui.separator();
+                ui.horizontal(|ui| {
+                    // ui.checkbox(&mut self.rotx, "Rotate X");
+                    // ui.checkbox(&mut self.roty, "Rotate Y");
+                    // ui.checkbox(&mut self.rotz, "Rotate Z");
+                    // ui.separator();
+
+                    ui.separator();
+                    ui.colored_label(egui::Color32::LIGHT_YELLOW, "Zoom: ");
+                    ui.add(
+                        egui::DragValue::new(&mut self.zoom)
+                            .speed(0.1)
+                            .range(MIN_ZOOM..=MAX_ZOOM),
+                    );
+                    ui.separator();
+
+                    ui.separator();
+                    ui.colored_label(egui::Color32::YELLOW, "Line Width: ");
+                    ui.add(
+                        egui::DragValue::new(&mut self.line_width)
+                            .speed(0.01)
+                            .range(MIN_WIDTH..=MAX_WIDTH),
+                    );
+                    ui.separator();
+
+                    if ui.button("Restart View").clicked() {
+                        //self.calculate_bounds_and_fit(ui.available_rect_before_wrap());
+                        *self = Self::new();
+                    }
+                });
+
+                ui.separator();
+
+                ui.checkbox(&mut self.invert_y, "Invert Y axis");
             });
 
             // El área de dibujo para el objeto 3D
