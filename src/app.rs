@@ -197,6 +197,9 @@ impl eframe::App for AppMap {
                     );
                     ui.separator();
 
+                    ui.checkbox(&mut self.invert_y, "Invert Y axis");
+                    ui.separator();
+
                     if ui.button("Restart View").clicked() {
                         //self.calculate_bounds_and_fit(ui.available_rect_before_wrap());
                         *self = Self::new();
@@ -204,8 +207,6 @@ impl eframe::App for AppMap {
                 });
 
                 ui.separator();
-
-                ui.checkbox(&mut self.invert_y, "Invert Y axis");
             });
 
             // El área de dibujo para el objeto 3D
