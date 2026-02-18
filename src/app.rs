@@ -15,6 +15,8 @@
 
 // -- Uses: ---------------------------------------------------------------
 use crate::types::{Map, Point2D};
+use egui::color_picker::color_edit_button_srgba;
+use egui::widgets::color_picker::{color_edit_button_srgb, Alpha};
 use egui::{pos2, remap, Color32, Pos2, Rect, Stroke};
 
 // -- Constants: ----------------------------------------------------------
@@ -33,6 +35,7 @@ pub struct AppMap {
     points: Map,
     worldr: Rect,
     invert_y: bool,
+    color: [u8; 3],
 }
 
 // -- Implementation AppMap: -----------------------------------------------
@@ -49,10 +52,11 @@ impl AppMap {
             points,
             worldr,
             invert_y: true,
+            color: [240, 20, 20],
         }
     }
 
-    fn draw_point(p: Point2D, zoom: f32, line_width: f32, painter: &egui::Painter) {
+    fn draw_point(p: Point2D, zoom: f32, line_width: f32, color: Color32, painter: &egui::Painter) {
         // También puedes obtener los límites
         // let min = painter.clip_rect().min; // Esquina superior izquierda (Pos2)
         // let max = painter.clip_rect().max; // Esquina inferior derecha (Pos2)
@@ -62,7 +66,6 @@ impl AppMap {
         // let radio = zoom.min(3.5);
         // let radio = ((zoom + 0.125) / 2.5).max(3.5);
         // let color = Color32::from_rgb(255, 255, 255);
-        let color = Color32::CYAN;
 
         radio = line_width;
 
@@ -84,8 +87,10 @@ impl AppMap {
             if self.invert_y {
                 iwp.y *= -1.0;
             }
+
             let sp = iwp.world2screen(worldr, screenr);
-            AppMap::draw_point(sp, self.zoom, self.line_width, painter);
+            let color = Color32::from_rgb(self.color[0], self.color[1], self.color[2]);
+            AppMap::draw_point(sp, self.zoom, self.line_width, color, painter);
         }
     }
 
@@ -188,6 +193,9 @@ impl eframe::App for AppMap {
                     );
                     ui.separator();
 
+                    ui.colored_label(egui::Color32::RED, "Color: ");
+                    color_edit_button_srgb(ui, &mut self.color);
+
                     ui.separator();
                     ui.colored_label(egui::Color32::RED, "Line Width: ");
                     ui.add(
@@ -244,7 +252,8 @@ impl eframe::App for AppMap {
                         .line_segment([rect.left_top(), rect.right_bottom()], (2.0, Color32::RED));
 
                     // Ejemplo: Un círculo en el medio del área grande
-                    painter.circle_filled(rect.center(), 50.0, Color32::BLUE);
+                    let color = Color32::from_rgb(self.color[0], self.color[1], self.color[2]);
+                    painter.circle_filled(rect.center(), 50.0, color);
 
                     // Texto para orientarse
                     painter.text(
