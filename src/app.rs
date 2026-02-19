@@ -20,8 +20,8 @@ use egui::widgets::color_picker::{color_edit_button_srgb, Alpha};
 use egui::{pos2, remap, Color32, Pos2, Rect, Stroke};
 
 // -- Constants: ----------------------------------------------------------
-const MIN_ZOOM: f32 = 0.25;
-const MAX_ZOOM: f32 = 30.00;
+const MIN_ZOOM: f32 = 0.05;
+const MAX_ZOOM: f32 = 4.00;
 
 const MIN_WIDTH: f32 = 0.01;
 const MAX_WIDTH: f32 = 2.00;
@@ -51,7 +51,7 @@ impl AppMap {
 
         Self {
             zoom: 1.0,
-            line_width: 0.25,
+            line_width: 0.5,
             file_path: String::from("assets/coastline.dat"),
             error_message: String::new(),
             points,
