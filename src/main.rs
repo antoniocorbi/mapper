@@ -1,9 +1,33 @@
+// Copyright (C) 2026  Antonio-Miguel Corbi Bellot
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 mod app;
 mod files;
 mod types;
 
 // -- Native App: ---------------------------------------------------------
 // When compiling natively:
+/// The main entry point for the native desktop application.
+///
+/// This function initializes the `eframe` native backend with specified
+/// `NativeOptions`, including viewport size and application icon.
+/// It then runs the `AppMap` application.
+///
+/// # Returns
+///
+/// A `eframe::Result` indicating success or failure of the application launch.
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
     //env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -33,6 +57,14 @@ fn main() -> eframe::Result {
 
 // -- Web App: ------------------------------------------------------------
 // When compiling to web using trunk:
+// When compiling to web using trunk:
+/// The main entry point for the web application (compiled to WebAssembly).
+///
+/// This function sets up the `eframe` web backend, finding the designated
+/// canvas element in the HTML document. It then spawns a local asynchronous
+/// task to start the `AppMap` application within the browser.
+/// Upon successful initialization, it removes the loading text/spinner;
+/// otherwise, it displays an error.
 #[cfg(target_arch = "wasm32")]
 fn main() {
     use eframe::wasm_bindgen::JsCast as _;

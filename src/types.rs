@@ -15,15 +15,34 @@
 
 use egui::Rect;
 
+/// A type alias for a vector of `Point2D`s, representing a collection of map points.
 pub type Map = Vec<Point2D>;
 
+/// Represents a 2D point with `x` and `y` coordinates.
+///
+/// This struct is `Debug`, `Copy`, and `Clone` for easy manipulation and printing.
 #[derive(Debug, Copy, Clone)]
 pub struct Point2D {
+    /// The x-coordinate of the point.
     pub x: f32,
+    /// The y-coordinate of the point.
     pub y: f32,
 }
 
 impl Point2D {
+    /// Transforms the `Point2D` from a world coordinate system to a screen coordinate system.
+    ///
+    /// This method uses linear remapping to translate the point's coordinates
+    /// from a source `world` rectangle to a target `screen` rectangle.
+    ///
+    /// # Arguments
+    ///
+    /// * `world` - The `egui::Rect` defining the boundaries of the world coordinate system.
+    /// * `screen` - The `egui::Rect` defining the boundaries of the screen coordinate system.
+    ///
+    /// # Returns
+    ///
+    /// A new `Point2D` with coordinates remapped to the screen coordinate system.
     pub fn world2screen(&self, world: Rect, screen: Rect) -> Point2D {
         let x = egui::remap(
             self.x,

@@ -74,7 +74,7 @@ alias c := check
 
 # Generate docs
 @doc:
-    cargo doc
+    cargo doc --no-deps --document-private-items
 
 ## Tests ------------------------------------------------------------------
 

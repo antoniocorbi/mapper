@@ -19,23 +19,58 @@ use std::path::Path;
 
 use crate::types::{Map, Point2D};
 
+/// Parses a "face" line from an OBJ file format.
+///
+/// This function extracts vertex indices from a line starting with "f",
+/// adjusting them from 1-based (OBJ) to 0-based (Rust vector indexing).
+/// It expects the format `f v1[/vt1][/vn1] v2[/vt2][/vn2] ...`.
+///
+/// # Arguments
+///
+/// * `line` - A string slice representing a line from an OBJ file, expected
+///            to start with 'f'.
+///
+/// # Returns
+///
+/// A `Vec<usize>` containing the 0-based vertex indices.
+///
+/// # Panics
+///
+/// Panics if a vertex index cannot be parsed as a `usize`.
 fn parse_face(line: &str) -> Vec<usize> {
-    line.split_whitespace() // Separa "f", "23/1/23", "3/2/3", etc.
-        .skip(1) // Ignora la "f"
+    line.split_whitespace() // Separates "f", "23/1/23", "3/2/3", etc.
+        .skip(1) // Ignores the "f"
         .map(|blk| {
-            // Tomamos solo lo que está antes del primer '/'
+            // Takes only what is before the first '/'
             let idx_str = blk.split('/').next().unwrap();
-            // Convertimos a número (ajustando el índice 1 del OBJ al 0 de Rust)
-            idx_str
-                .parse::<usize>()
-                .expect("Índice de vértice no válido")
-                - 1 // Rust vector indexes start @0 not 1
+            // Converts to number (adjusting the 1-based OBJ index to 0-based Rust)
+            idx_str.parse::<usize>().expect("Invalid vertex index") - 1 // Rust vector indexes start @0 not 1
         })
         .collect()
 }
 
+/// Reads map data from a specified file and computes its `egui::Rect` bounds.
+///
+/// This function opens a file, reads it line by line, and parses each line
+/// into `Point2D` objects. It also determines the minimum and maximum
+/// X and Y coordinates to establish the `worldr` (world rectangle) of the map.
+/// Lines starting with '#' or empty lines are ignored.
+///
+/// # Arguments
+///
+/// * `fname` - The path to the file containing the map data.
+///
+/// # Returns
+///
+/// A `io::Result` containing a tuple:
+/// * `Map`: A `Vec<Point2D>` representing the parsed map data.
+/// * `egui::Rect`: The bounding box (`worldr`) of all points in the map.
+///
+/// # Errors
+///
+/// Returns an `io::Error` if the file cannot be opened or read.
 pub fn read_map(fname: &str) -> io::Result<(Map, egui::Rect)> {
-    // 1. Abrir el archivo
+    // 1. Open the file
     let path = Path::new(fname);
     let file = File::open(path)?;
     let reader = BufReader::new(file);
@@ -43,17 +78,17 @@ pub fn read_map(fname: &str) -> io::Result<(Map, egui::Rect)> {
     let maxxy: egui::Pos2 = egui::pos2(f32::MIN, f32::MIN);
     let mut worldr: egui::Rect = egui::Rect::from_min_max(minxy, maxxy);
 
-    // 2. Iterar sobre las líneas de forma eficiente
+    // 2. Iterate over the lines efficiently
     let mut m: Map = vec![];
     for line in reader.lines() {
-        let line = line?; // Manejar posibles errores de lectura
+        let line = line?; // Handle potential read errors
 
         if !line.starts_with("#") && line.len() > 0 {
             let coords: Vec<f32> = line
                 .split_whitespace()
                 .map(|s| s.parse().unwrap())
                 .collect();
-            // Ahora coords es algo como [1.0, 0.5]
+            // Now coords is something like [1.0, 0.5]
             let p = Point2D {
                 x: coords[0],
                 y: coords[1],
@@ -74,7 +109,6 @@ pub fn read_map(fname: &str) -> io::Result<(Map, egui::Rect)> {
                 worldr.max.y = p.y;
             }
         }
-        // println!("{:?}", m);
     }
 
     Ok((m, worldr))
