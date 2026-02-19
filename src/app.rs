@@ -26,6 +26,9 @@ const MAX_ZOOM: f32 = 30.00;
 const MIN_WIDTH: f32 = 0.01;
 const MAX_WIDTH: f32 = 2.00;
 
+const MAP_W: f32 = 6000.0;
+const MAP_H: f32 = 4500.0;
+
 // -- Structs: ------------------------------------------------------------
 pub struct AppMap {
     zoom: f32,
@@ -34,6 +37,7 @@ pub struct AppMap {
     error_message: String,
     points: Map,
     worldr: Rect,
+    screenr: Rect,
     invert_y: bool,
     color: [u8; 3],
 }
@@ -42,17 +46,19 @@ pub struct AppMap {
 impl AppMap {
     pub fn new() -> Self {
         let worldr: Rect = Rect::from_min_max(pos2(-1.0, -1.0), pos2(1.0, 1.0));
+        let screenr: Rect = Rect::ZERO;
         let points = vec![];
 
         Self {
             zoom: 1.0,
-            line_width: 0.05,
+            line_width: 0.25,
             file_path: String::from("assets/coastline.dat"),
             error_message: String::new(),
             points,
             worldr,
+            screenr,
             invert_y: true,
-            color: [240, 20, 20],
+            color: [255, 215, 103],
         }
     }
 
@@ -62,25 +68,27 @@ impl AppMap {
         // let max = painter.clip_rect().max; // Esquina inferior derecha (Pos2)
 
         let centro = pos2(p.x, p.y);
-        let mut radio = zoom;
+        // let mut radio = zoom;
         // let radio = zoom.min(3.5);
         // let radio = ((zoom + 0.125) / 2.5).max(3.5);
         // let color = Color32::from_rgb(255, 255, 255);
 
-        radio = line_width;
+        let radio = line_width;
 
         painter.circle_filled(centro, radio, color);
     }
 
-    fn draw_lines(lines: &Vec<Pos2>, painter: &egui::Painter) {
-        let stroke = Stroke::new(0.5, egui::Color32::LIGHT_YELLOW);
+    fn draw_lines(lines: &Vec<Pos2>, line_width: f32, color: Color32, painter: &egui::Painter) {
+        let stroke = Stroke::new(line_width, color);
         painter.line(lines.to_vec(), stroke);
     }
 
     fn draw_map(&self, painter: &egui::Painter) {
         //let dz = MAX_ZOOM - self.zoom;
-        let worldr: Rect = self.worldr / self.zoom;
-        let screenr: Rect = painter.clip_rect();
+        // let worldr: Rect = self.worldr / self.zoom;
+        let worldr: Rect = self.worldr;
+        //let screenr: Rect = painter.clip_rect();
+        let screenr: Rect = self.screenr;
 
         for wp in &self.points {
             let mut iwp = *wp;
@@ -184,14 +192,7 @@ impl eframe::App for AppMap {
                     // ui.checkbox(&mut self.rotz, "Rotate Z");
                     // ui.separator();
 
-                    ui.separator();
-                    ui.colored_label(egui::Color32::RED, "Zoom: ");
-                    ui.add(
-                        egui::DragValue::new(&mut self.zoom)
-                            .speed(0.1)
-                            .range(MIN_ZOOM..=MAX_ZOOM),
-                    );
-                    ui.separator();
+                    //ui.separator();
 
                     ui.colored_label(egui::Color32::RED, "Color: ");
                     color_edit_button_srgb(ui, &mut self.color);
@@ -200,9 +201,18 @@ impl eframe::App for AppMap {
                     ui.colored_label(egui::Color32::RED, "Line Width: ");
                     ui.add(
                         egui::DragValue::new(&mut self.line_width)
-                            .speed(0.01)
+                            .speed(0.02)
                             .range(MIN_WIDTH..=MAX_WIDTH),
                     );
+
+                    ui.separator();
+                    ui.colored_label(egui::Color32::RED, "Zoom: ");
+                    ui.add(
+                        egui::DragValue::new(&mut self.zoom)
+                            .speed(0.015)
+                            .range(MIN_ZOOM..=MAX_ZOOM),
+                    );
+
                     ui.separator();
 
                     ui.checkbox(&mut self.invert_y, "Invert Y axis");
@@ -230,6 +240,41 @@ impl eframe::App for AppMap {
             let (outer_rect, _) = ui.allocate_exact_size(window_size, egui::Sense::hover());
 
             // 3. Creamos una UI hija usando el nuevo patrón de UiBuilder y new_child
+            // let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(outer_rect));
+            // egui::ScrollArea::both() // Permite scroll en ambas direcciones
+            //     .auto_shrink([false; 2]) // Opcional: evita que el área se colapse
+            //     .max_height(window_size.y) // Forzamos el límite de la zona de recorte
+            //     .max_width(window_size.x)
+            //     .show(&mut child_ui, |ui| {
+            //         // 1. Define el tamaño total de tu "mapa" o dibujo
+            //         let canvas_size = Vec2::new(1000.0, 1000.0);
+            //
+            //         // 2. Reserva el espacio y obtén el Painter
+            //         // allocate_painter devuelve una respuesta (para eventos) y el painter
+            //         let (response, painter) =
+            //             ui.allocate_painter(canvas_size, egui::Sense::hover());
+            //
+            //         // 3. Dibuja usando coordenadas relativas al área reservada
+            //         let rect = response.rect; // Este es el Rect que abarca los 1000x1000 píxeles
+            //
+            //         // Ejemplo: Dibujar una línea que cruza todo el canvas
+            //         painter
+            //             .line_segment([rect.left_top(), rect.right_bottom()], (2.0, Color32::RED));
+            //
+            //         // Ejemplo: Un círculo en el medio del área grande
+            //         let color = Color32::from_rgb(self.color[0], self.color[1], self.color[2]);
+            //         painter.circle_filled(rect.center(), 50.0, color);
+            //
+            //         // Texto para orientarse
+            //         painter.text(
+            //             rect.left_top() + Vec2::new(10.0, 20.0),
+            //             egui::Align2::LEFT_TOP,
+            //             "Esquina superior izquierda",
+            //             egui::FontId::proportional(20.0),
+            //             Color32::WHITE,
+            //         );
+            //     });
+
             let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(outer_rect));
             egui::ScrollArea::both() // Permite scroll en ambas direcciones
                 .auto_shrink([false; 2]) // Opcional: evita que el área se colapse
@@ -237,54 +282,27 @@ impl eframe::App for AppMap {
                 .max_width(window_size.x)
                 .show(&mut child_ui, |ui| {
                     // 1. Define el tamaño total de tu "mapa" o dibujo
-                    let canvas_size = Vec2::new(1000.0, 1000.0);
+                    let canvas_size = egui::Vec2::new(MAP_W, MAP_H);
 
                     // 2. Reserva el espacio y obtén el Painter
                     // allocate_painter devuelve una respuesta (para eventos) y el painter
                     let (response, painter) =
                         ui.allocate_painter(canvas_size, egui::Sense::hover());
 
-                    // 3. Dibuja usando coordenadas relativas al área reservada
-                    let rect = response.rect; // Este es el Rect que abarca los 1000x1000 píxeles
+                    //dbg!(self.screenr);
+                    //dbg!(painter.clip_rect());
 
-                    // Ejemplo: Dibujar una línea que cruza todo el canvas
-                    painter
-                        .line_segment([rect.left_top(), rect.right_bottom()], (2.0, Color32::RED));
+                    //let rect = available_rect_before_wrap;
+                    painter.rect_filled(response.rect, 0.0, egui::Color32::from_rgb(50, 50, 50));
+                    // let screenr: Rect = painter.clip_rect();
+                    // painter.set_clip_rect(screenr);
 
-                    // Ejemplo: Un círculo en el medio del área grande
-                    let color = Color32::from_rgb(self.color[0], self.color[1], self.color[2]);
-                    painter.circle_filled(rect.center(), 50.0, color);
+                    // Dibujar un fondo para el área del mapa
+                    // response.rect es el rectangulo real, no el 'recortado': [[8.0 99.0] - [1508.0 1599.0]]
+                    self.screenr = response.rect * self.zoom;
 
-                    // Texto para orientarse
-                    painter.text(
-                        rect.left_top() + Vec2::new(10.0, 20.0),
-                        egui::Align2::LEFT_TOP,
-                        "Esquina superior izquierda",
-                        egui::FontId::proportional(20.0),
-                        Color32::WHITE,
-                    );
+                    self.draw_contents(&painter);
                 });
-            // egui::ScrollArea::both() // Permite scroll en ambas direcciones
-            //     .auto_shrink([false; 2]) // Opcional: evita que el área se colapse
-            //     .show(ui, |ui| {
-            //         // 1. Define el tamaño total de tu "mapa" o dibujo
-            //         let canvas_size = egui::Vec2::new(1000.0, 1000.0);
-            //
-            //         // 2. Reserva el espacio y obtén el Painter
-            //         // allocate_painter devuelve una respuesta (para eventos) y el painter
-            //         let (response, painter) =
-            //             ui.allocate_painter(canvas_size, egui::Sense::hover());
-            //
-            //         // Dibujar un fondo para el área del mapa
-            //         painter.rect_filled(
-            //             available_rect_before_wrap,
-            //             0.0,
-            //             egui::Color32::from_rgb(50, 50, 50),
-            //         );
-            //         // let screenr: Rect = painter.clip_rect();
-            //         // painter.set_clip_rect(screenr);
-            //         self.draw_contents(&painter);
-            //     });
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 powered_by_egui_and_eframe_and_me(ui);
