@@ -84,10 +84,7 @@ impl AppMap {
     }
 
     fn draw_map(&self, painter: &egui::Painter) {
-        //let dz = MAX_ZOOM - self.zoom;
-        // let worldr: Rect = self.worldr / self.zoom;
         let worldr: Rect = self.worldr;
-        //let screenr: Rect = painter.clip_rect();
         let screenr: Rect = self.screenr;
 
         for wp in &self.points {
@@ -289,17 +286,18 @@ impl eframe::App for AppMap {
                     let (response, painter) =
                         ui.allocate_painter(canvas_size, egui::Sense::hover());
 
-                    //dbg!(self.screenr);
-                    //dbg!(painter.clip_rect());
-
                     //let rect = available_rect_before_wrap;
-                    painter.rect_filled(response.rect, 0.0, egui::Color32::from_rgb(50, 50, 50));
-                    // let screenr: Rect = painter.clip_rect();
-                    // painter.set_clip_rect(screenr);
+                    // painter.rect_filled(response.rect, 0.0, egui::Color32::from_rgb(50, 50, 50));
+                    painter.rect_filled(
+                        response.rect,
+                        //painter.clip_rect(),
+                        0.0,
+                        egui::Color32::from_rgb(50, 50, 50),
+                    );
 
                     // Dibujar un fondo para el área del mapa
                     // response.rect es el rectangulo real, no el 'recortado': [[8.0 99.0] - [1508.0 1599.0]]
-                    self.screenr = response.rect * self.zoom;
+                    self.screenr = response.rect * self.zoom * 0.25;
 
                     self.draw_contents(&painter);
                 });
