@@ -26,8 +26,8 @@ const MAX_ZOOM: f32 = 4.00;
 const MIN_WIDTH: f32 = 0.01;
 const MAX_WIDTH: f32 = 2.00;
 
-const MAP_W: f32 = 6000.0;
-const MAP_H: f32 = 4500.0;
+const MAP_W: f32 = 2000.0;
+const MAP_H: f32 = 1500.0;
 
 // -- Structs: ------------------------------------------------------------
 /// `AppMap` is the main application struct that holds the state for the map visualization.
@@ -89,7 +89,7 @@ impl AppMap {
     /// * `line_width`: The radius of the drawn circle.
     /// * `color`: The `Color32` to fill the circle with.
     /// * `painter`: The `egui::Painter` used for drawing.
-    fn draw_point(p: Point2D, zoom: f32, line_width: f32, color: Color32, painter: &egui::Painter) {
+    fn draw_point(p: Point2D, line_width: f32, color: Color32, painter: &egui::Painter) {
         let centro = pos2(p.x, p.y);
         let radio = line_width;
         painter.circle_filled(centro, radio, color);
@@ -126,7 +126,7 @@ impl AppMap {
 
             let sp = iwp.world2screen(worldr, screenr);
             let color = Color32::from_rgb(self.color[0], self.color[1], self.color[2]);
-            AppMap::draw_point(sp, self.zoom, self.line_width, color, painter);
+            AppMap::draw_point(sp, self.line_width, color, painter);
         }
     }
 
@@ -262,6 +262,8 @@ impl eframe::App for AppMap {
             let (outer_rect, _) = ui.allocate_exact_size(window_size, egui::Sense::hover());
 
             let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(outer_rect));
+            let gray_rect = child_ui.max_rect();
+
             egui::ScrollArea::both() // Allows scrolling in both directions
                 .auto_shrink([false; 2]) // Optional: prevents the area from collapsing
                 .max_height(window_size.y) // Enforce the clipping area limit
@@ -275,11 +277,12 @@ impl eframe::App for AppMap {
                     let (response, painter) =
                         ui.allocate_painter(canvas_size, egui::Sense::hover());
 
-                    painter.rect_filled(response.rect, 0.0, egui::Color32::from_rgb(50, 50, 50));
+                    //dbg!(response.rect);
+                    painter.rect_filled(gray_rect, 0.0, egui::Color32::from_rgb(50, 50, 50));
 
                     // Draw a background for the map area
                     // response.rect is the actual rectangle, not the 'clipped' one: [[8.0 99.0] - [1508.0 1599.0]]
-                    self.screenr = response.rect * self.zoom * 0.25;
+                    self.screenr = response.rect * self.zoom;
 
                     self.draw_contents(&painter);
                 });
