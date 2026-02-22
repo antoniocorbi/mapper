@@ -29,6 +29,11 @@ const MAX_WIDTH: f32 = 2.00;
 const MAP_W: f32 = 2000.0;
 const MAP_H: f32 = 1500.0;
 
+// -- Traits: -------------------------------------------------------------
+trait Ui {
+    fn create_scroll_area(&mut self, ui: &mut egui::Ui);
+}
+
 // -- Structs: ------------------------------------------------------------
 /// `AppMap` is the main application struct that holds the state for the map visualization.
 ///
@@ -137,6 +142,86 @@ impl AppMap {
     /// * `painter`: The `egui::Painter` used for drawing.
     pub fn draw_contents(&self, painter: &egui::Painter) {
         self.draw_map(painter);
+    }
+}
+
+impl Ui for AppMap {
+    /// Creates a scrollable area within the `egui` UI for displaying a 3D object or a large 2D canvas.
+    ///
+    /// This function sets up an `egui::ScrollArea` that allows the user to pan across a larger
+    /// drawing surface (`canvas_size`) than is visible in the current UI window (`window_size`).
+    /// It handles allocating the necessary UI space, defining a clipping region, and then
+    /// uses a painter to draw the contents, typically a 3D scene or a large map.
+    ///
+    /// # Arguments
+    ///
+    /// * `self` - A mutable reference to the struct containing this function,
+    ///            which is expected to hold state pertinent to the drawing, such as `zoom` and `screenr`,
+    ///            and provide the `draw_contents` method.
+    /// * `ui` - A mutable reference to the `egui::Ui` where the scroll area will be rendered.
+    ///
+    /// # Panics
+    ///
+    /// This function does not explicitly panic, but relies on `egui`'s UI allocation mechanisms.
+    ///
+    /// # Details
+    ///
+    /// 1.  **Window Size Calculation**: It first determines the available size for the drawing area,
+    ///     adjusting the height to account for other UI elements (e.g., a header or footer).
+    /// 2.  **UI Allocation**: An exact size is allocated in the UI for the visible "window" of the painter.
+    /// 3.  **Scroll Area Setup**: An `egui::ScrollArea::both()` is created to enable horizontal and
+    ///     vertical scrolling. It is configured to enforce the calculated `window_size`
+    ///     as its maximum dimensions, effectively defining the clipping area for the contents.
+    /// 4.  **Canvas Size**: Inside the scroll area, a `canvas_size` (defined by `MAP_W` and `MAP_H`)
+    ///     represents the total dimensions of the content that can be scrolled across.
+    /// 5.  **Painter Allocation**: A painter is allocated for the `canvas_size`, providing the drawing
+    ///     context for the contents.
+    /// 6.  **Background Drawing**: A gray background rectangle is drawn within the allocated `child_ui`
+    ///     to provide a visual context for the scrollable area.
+    /// 7.  **Content Drawing**: The `self.draw_contents(&painter)` method is called to render
+    ///     the specific visual elements within the scroll area. The `screenr` member of `self`
+    ///     is updated based on the actual painted rectangle and the current `zoom` level,
+    ///     which is likely used to determine what portion of the `canvas_size` is currently visible
+    ///     and needs to be drawn.
+    ///
+    /// This function requires `MAP_W` and `MAP_H` to be defined in the scope where this
+    /// function is used, representing the total width and height of the content being drawn.
+    fn create_scroll_area(&mut self, ui: &mut egui::Ui) {
+        // The drawing area for the 3D object
+        let mut available_size_before_wrap = ui.available_size_before_wrap();
+        available_size_before_wrap.y -= 70.0; // Important for clipping
+
+        // 1. Define the size of the visible "window" of the painter
+        let window_size = available_size_before_wrap;
+
+        use egui::Vec2;
+        // 2. Allocate that space in the UI
+        let (outer_rect, _) = ui.allocate_exact_size(window_size, egui::Sense::hover());
+
+        let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(outer_rect));
+        let gray_rect = child_ui.max_rect();
+
+        egui::ScrollArea::both() // Allows scrolling in both directions
+            .auto_shrink([false; 2]) // Optional: prevents the area from collapsing
+            .max_height(window_size.y) // Enforce the clipping area limit
+            .max_width(window_size.x)
+            .show(&mut child_ui, |ui| {
+                // 1. Define the total size of your "map" or drawing
+                let canvas_size = egui::Vec2::new(MAP_W, MAP_H);
+
+                // 2. Allocate the space and get the Painter
+                // allocate_painter returns a response (for events) and the painter
+                let (response, painter) = ui.allocate_painter(canvas_size, egui::Sense::hover());
+
+                //dbg!(response.rect);
+                painter.rect_filled(gray_rect, 0.0, egui::Color32::from_rgb(50, 50, 50));
+
+                // Draw a background for the map area
+                // response.rect is the actual rectangle, not the 'clipped' one: [[8.0 99.0] - [1508.0 1599.0]]
+                self.screenr = response.rect * self.zoom;
+
+                self.draw_contents(&painter);
+            });
     }
 }
 
@@ -250,42 +335,7 @@ impl eframe::App for AppMap {
                 ui.separator();
             });
 
-            // The drawing area for the 3D object
-            let mut available_size_before_wrap = ui.available_size_before_wrap();
-            available_size_before_wrap.y -= 70.0; // Important for clipping
-
-            // 1. Define the size of the visible "window" of the painter
-            let window_size = available_size_before_wrap;
-
-            use egui::Vec2;
-            // 2. Allocate that space in the UI
-            let (outer_rect, _) = ui.allocate_exact_size(window_size, egui::Sense::hover());
-
-            let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(outer_rect));
-            let gray_rect = child_ui.max_rect();
-
-            egui::ScrollArea::both() // Allows scrolling in both directions
-                .auto_shrink([false; 2]) // Optional: prevents the area from collapsing
-                .max_height(window_size.y) // Enforce the clipping area limit
-                .max_width(window_size.x)
-                .show(&mut child_ui, |ui| {
-                    // 1. Define the total size of your "map" or drawing
-                    let canvas_size = egui::Vec2::new(MAP_W, MAP_H);
-
-                    // 2. Allocate the space and get the Painter
-                    // allocate_painter returns a response (for events) and the painter
-                    let (response, painter) =
-                        ui.allocate_painter(canvas_size, egui::Sense::hover());
-
-                    //dbg!(response.rect);
-                    painter.rect_filled(gray_rect, 0.0, egui::Color32::from_rgb(50, 50, 50));
-
-                    // Draw a background for the map area
-                    // response.rect is the actual rectangle, not the 'clipped' one: [[8.0 99.0] - [1508.0 1599.0]]
-                    self.screenr = response.rect * self.zoom;
-
-                    self.draw_contents(&painter);
-                });
+            self.create_scroll_area(ui);
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 powered_by_egui_and_eframe_and_me(ui);
